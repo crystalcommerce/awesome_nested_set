@@ -88,7 +88,8 @@ module CollectiveIdea #:nodoc:
           
             named_scope :roots, :conditions => {parent_column_name => nil}, :order => quoted_left_column_name
             named_scope :leaves, :conditions => "#{quoted_right_column_name} - #{quoted_left_column_name} = 1", :order => quoted_left_column_name
-
+            named_scope :tree_order, :order => quoted_left_column_name
+            
             define_callbacks("before_move", "after_move")
           end
           
@@ -212,6 +213,11 @@ module CollectiveIdea #:nodoc:
             yield(o, path.length - 1)
           end
         end
+        
+        def preloaded_full_set
+          CollectiveIdea::Acts::NestedSet::TreeBuilder.tree(self.tree_order)
+        end
+        
       end
       
       # Mixed into both classes and instances to provide easy access to the column names
@@ -344,6 +350,11 @@ module CollectiveIdea #:nodoc:
         # Returns a set of all of its children and nested children
         def descendants
           without_self self_and_descendants
+        end
+        
+        # Returns just itself, but has all descendents eager-loaded
+        def preload_descendants
+          self.children.target = CollectiveIdea::Acts::NestedSet::TreeBuilder.tree(self_and_descendants)
         end
 
         def is_descendant_of?(other)
